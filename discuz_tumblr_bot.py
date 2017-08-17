@@ -162,8 +162,7 @@ def update_detail_from_database():
 
 
 if __name__ == '__main__':
-    #
-    # update_discuz()
-    # update_detail_from_database()
+    update_discuz()
+    update_detail_from_database()
 
     reblog()
