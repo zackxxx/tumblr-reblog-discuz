@@ -1,23 +1,12 @@
 import json
-import tumblr
 import tumblpy
-import config
-from discuz import Discuz
-import re
-import asyncio
-import peewee
-from repo import Post
-from mycoro import MyCoro
-
 from multiprocessing import Pool
 
+import config
+from discuz import Discuz
+from repo import Post
+
 MAX_CONCUR = 5
-
-
-def cleanhtml(raw_html):
-    cleanr = re.compile('<.*?>')
-    cleantext = re.sub(cleanr, '', raw_html)
-    return cleantext
 
 
 def dd(content):
