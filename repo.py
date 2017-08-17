@@ -1,8 +1,9 @@
 from peewee import *
 from playhouse.sqlite_ext import SqliteExtDatabase
 import datetime
+import os
 
-db = SqliteExtDatabase('data/database.db')
+db = SqliteExtDatabase(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data/database.db'))
 
 
 class BaseModel(Model):
