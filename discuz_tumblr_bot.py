@@ -51,11 +51,9 @@ def init_client():
 def reblog():
     client = init_client()
     offset = 0
-    step = 100
-    while True:
-        posts = Post.select().where(Post.downloaded == 0).order_by(Post.id.desc()).offset(offset).limit(step)
-        if posts.count() == 0:
-            break
+    step = 200
+    posts = Post.select().where(Post.downloaded == 0).order_by(Post.id.desc()).offset(offset).limit(step)
+    if posts.count() > 0:
         print('start count {}'.format(len(posts)))
         pool = Pool(10)
         for post in posts:
