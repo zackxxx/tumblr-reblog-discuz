@@ -185,10 +185,10 @@ def update_detail_from_database():
 
 if __name__ == '__main__':
     fids = [
-        (19, 1, 2, 'digest', 'dateline'),
-        (17, 1, 2, 'digest', 'dateline'),
-        (4, 1, 2, 'digest', 'dateline'),
-        (21, 1, 2, 'digest', 'dateline'),
+        (19, 1, 5, '', 'dateline'),
+        (17, 1, 2, '', 'dateline'),
+        (4, 1, 2, '', 'dateline'),
+        (21, 1, 2, '', 'dateline'),
 
         # (19, 1, 170, '2592000', 'heats'),
         # (17, 1, 18, '2592000', 'heats'),
