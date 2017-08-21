@@ -1,6 +1,6 @@
 import json
 import tumblpy
-from multiprocessing import Pool
+from multiprocessing import Pool, Manager
 import os
 
 import config
@@ -14,6 +14,14 @@ def dd(content):
     print(type(content))
     print(content)
     exit(1)
+
+
+class TumblrLimitException(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return self.msg
 
 
 def tumblr_posting(client, discuz_post, my_blog):
@@ -32,8 +40,7 @@ def tumblr_posting(client, discuz_post, my_blog):
         res = client.post('post', my_blog, params=post)
     except tumblpy.exceptions.TumblpyError as e:
         if ('your daily post limit' in str(e)):
-            print(e)
-            exit(1)
+            raise TumblrLimitException(str(e))
         else:
             print(e)
             print('reblog fail: {}'.format(discuz_post['post_id']))
@@ -57,16 +64,20 @@ def reblog(status=0):
     if posts.count() > 0:
         print('start count {}'.format(len(posts)))
         pool = Pool(10)
+        m = Manager()
+        event = m.Event()
         for post in posts:
             # reblog_a_blog(client, post)
-            pool.apply_async(reblog_a_blog, (client, post))
+            pool.apply_async(reblog_a_blog, (client, post, event))
         pool.close()
+        event.wait()  # We'll block here until a worker calls `event.set()`
+        pool.terminate()
         pool.join()
     else:
         print('no post')
 
 
-def reblog_a_blog(client, post):
+def reblog_a_blog(client, post, event):
     try:
         post = {
             'post_id': post.post_id,
@@ -86,9 +97,11 @@ def reblog_a_blog(client, post):
             if len(format_post['contents']) > 1:
                 reblog_post['title'] += '【{}】'.format(num + 1)
             tumblr_posting(client, reblog_post, config.my_blog)
-    except BaseException as e:
+    except TumblrLimitException as e:
         print(e)
-        exit(2)
+        event.set()
+    except Exception as e:
+        print(e)
 
 
 def format_discuz_post(post):
