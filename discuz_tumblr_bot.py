@@ -57,46 +57,53 @@ def reblog():
         print('start count {}'.format(len(posts)))
         pool = Pool(10)
         for post in posts:
+            # reblog_a_blog(client, post)
             pool.apply_async(reblog_a_blog, (client, post))
         pool.close()
         pool.join()
+    else:
+        print('no post')
 
 
 def reblog_a_blog(client, post):
-    post = {
-        'post_id': post.post_id,
-        'title': post.title,
-        'desc': post.desc,
-        'author_name': post.author_name,
-        'photos': json.loads(post.photos),
-    }
-    format_post = format_discuz_post(post)
-    if format_post is None:
-        print('skip reblog {}'.format(post['post_id']))
-        return None
+    try:
+        post = {
+            'post_id': post.post_id,
+            'title': post.title,
+            'desc': post.desc,
+            'author_name': post.author_name,
+            'photos': json.loads(post.photos),
+        }
+        format_post = format_discuz_post(post)
+        if format_post is None:
+            print('skip reblog {}'.format(post['post_id']))
+            return None
 
-    for num, desc in enumerate(format_post['contents']):
-        reblog_post = dict(post)
-        reblog_post['desc'] = desc
-        if len(format_post['contents']) > 1:
-            reblog_post['title'] += '【{}】'.format(num + 1)
-        tumblr_posting(client, reblog_post, config.my_blog)
+        for num, desc in enumerate(format_post['contents']):
+            reblog_post = dict(post)
+            reblog_post['desc'] = desc
+            if len(format_post['contents']) > 1:
+                reblog_post['title'] += '【{}】'.format(num + 1)
+            tumblr_posting(client, reblog_post, config.my_blog)
+    except BaseException as e:
+        print(e)
+        exit(2)
 
 
 def format_discuz_post(post):
-    post['desc'] = '\n'.join(list(filter(lambda line: len(line) > 3, post['desc'].splitlines())))
-    desc = ''
     image_count = 0
     image_total = len(post['photos'])
-
     if image_total < 5:
         Post.update(downloaded=3).where(Post.post_id == post['post_id']).execute()
         return None
-
+    post['desc'] = '\n'.join(list(filter(lambda line: len(line) > 3, post['desc'].splitlines())))
+    desc = ''
     replace = []
     split_count = 100
     split_name = '\n=========================\n'
     for num, line in enumerate(post['desc'].splitlines()):
+        line = line.replace('{', '').replace('}', '')
+
         if num in replace:
             continue
         if '下载 (' in line:
@@ -162,5 +169,5 @@ def update_detail_from_database():
 if __name__ == '__main__':
     update_discuz()
     update_detail_from_database()
-
+    
     reblog()
