@@ -72,13 +72,12 @@ class HttpCommon:
     async def _request(cls, url, method='GET', params=None, headers=None, cookies=None, encoding=None):
         params = params or {}
         method = method.lower()
-        headers = headers or cls.get_header()
+        # if len(cookies) == 0:
+        #     headers = headers or cls.get_header()
         cookies = cookies or cls.cookies
         encoding = encoding or ('utf-8', 'backslashreplace')
-
         if method not in ('get', 'post'):
             raise web.HTTPError('Method must be of GET or POST')
-
         async with aiohttp.ClientSession(cookies=cookies) as session:
             request_call = getattr(session, method)
             async with request_call(url, params=params, headers=headers, timeout=30) as res:

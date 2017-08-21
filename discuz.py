@@ -18,10 +18,6 @@ thread_reg = re.compile(
     'normalthread_(?P<post_id>[\w\W]*?)">([\w\W]*?)<span id="thread_([\w\W]*?)"><a([\w\W]*?)">(?P<title>[\w\W]*?)</a>([\w\W]*?)uid=([\w\W]*?)">(?P<author_name>[\w\W]*?)</a>([\w\W]*?)<em>(?P<post_time>[\w\W]*?)</em>')
 photo_reg = re.compile('file="attachments/([\w\W]*?)"')
 
-cookies = {
-
-}
-
 
 class Error(Exception):
     def __init__(self, msg):
@@ -32,6 +28,16 @@ class Error(Exception):
 
 
 class DiscuzAPI(object):
+    def __init__(self, cookies={}):
+        self.cookies = cookies
+
+    def set_cookies(self, cookies):
+        self.cookies = cookies
+        return self
+
+    def get_cookies(self):
+        return self.cookies
+
     async def thread_posts(self, fid, page=1, filter='digest', orderby='dateline'):
         def parse(content):
             raw_threads = re.findall(thread_reg, content)
@@ -48,13 +54,15 @@ class DiscuzAPI(object):
             return threads
 
         content = await HttpCommon.http_get(forum_config['board_url'],
-                                            params={'fid': fid, 'filter': filter, 'page': page, 'orderby': orderby})
+                                            params={'fid': fid, 'filter': filter, 'page': page, 'orderby': orderby},
+                                            cookies=self.get_cookies())
         print('fetch thread {} succeed!'.format(fid))
         return parse(content)
 
     async def post_detail(self, tid, all=False):
         try:
-            content = await HttpCommon.http_get(forum_config['thread_url'], params={'tid': tid})
+            content = await HttpCommon.http_get(forum_config['thread_url'], params={'tid': tid},
+                                                cookies=self.get_cookies())
             print('fetch post {} succeed!'.format(tid))
             post_photos = re.findall(photo_reg, content)
             sub_post_ids = re.findall(re.compile('id="postmessage_([\w\W]*?)"'), content)
@@ -86,7 +94,7 @@ class DiscuzAPI(object):
 
 class Discuz(DiscuzAPI):
     def __init__(self, concur_req=10, verbose=False):
-        self.api = DiscuzAPI()
+        # self = DiscuzAPI()
         self.coro = MyCoro()
         self.loop = asyncio.get_event_loop()
         self.post_exist = 0
@@ -96,22 +104,21 @@ class Discuz(DiscuzAPI):
         self.semaphore = asyncio.Semaphore(concur_req)
         self.todo = []
         self.pending_data = []
+        self.cookies = {}
 
-    def set_debug(self, debug=True):
-        self.api.set_debug(debug)
-
-    def get_lists(self, fid, start_page, end_page):
+    def get_lists(self, fid, start_page, end_page, filter='digest', orderby='dateline'):
         desc = '分类 {}, {} 页 到 {} 页'.format(fid, start_page, end_page)
         items_need_detail = self.coro.set_todo(
-            [self.api.thread_posts(fid, page) for page in range(start_page, end_page + 1)]).run(
+            [self.thread_posts(fid, page, filter, orderby) for page in range(start_page, end_page + 1)]).run(
             desc, self.save_posts)
         return items_need_detail
 
     def get_detail(self, posts):
         desc = '详情'
-        details = self.coro.set_todo([self.api.post_detail(post['post_id']) for post in posts]).run(desc,
-                                                                                               self.save_post_detail)
-        return details
+        if posts is not None:
+            details = self.coro.set_todo([self.post_detail(post['post_id']) for post in posts]).run(desc,
+                                                                                                    self.save_post_detail)
+            return details
 
     @staticmethod
     def trans_lists_to_dict(l):
@@ -174,6 +181,3 @@ class Discuz(DiscuzAPI):
         print('update detail for ', post_id)
 
         return post
-
-    def __del__(self):
-        self.loop.close()

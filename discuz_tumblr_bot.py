@@ -1,6 +1,7 @@
 import json
 import tumblpy
 from multiprocessing import Pool
+import os
 
 import config
 from discuz import Discuz
@@ -48,11 +49,11 @@ def init_client():
                            oauth_config['token'], oauth_config['token_secret'])
 
 
-def reblog():
+def reblog(status=0):
     client = init_client()
     offset = 0
     step = 200
-    posts = Post.select().where(Post.downloaded == 0).order_by(Post.id.desc()).offset(offset).limit(step)
+    posts = Post.select().where(Post.downloaded == status).order_by(Post.id.desc()).offset(offset).limit(step)
     if posts.count() > 0:
         print('start count {}'.format(len(posts)))
         pool = Pool(10)
@@ -144,11 +145,14 @@ def add_post_info(all_posts, post_id):
     return all_posts
 
 
-def update_discuz(fids=[19]):
+def update_discuz(fids, cookies={}):
     discuz = Discuz(concur_req=MAX_CONCUR)
+    discuz.set_cookies(cookies)
 
-    for fid in fids:
-        threads_posts = discuz.get_lists(fid, 1, 5)
+    for fid_info in fids:
+        if fid_info[0] in [19, 21]:
+            discuz.set_cookies({})
+        threads_posts = discuz.get_lists(*fid_info)
         for posts in threads_posts:
             discuz.get_detail(posts)
 
@@ -167,7 +171,22 @@ def update_detail_from_database():
 
 
 if __name__ == '__main__':
-    update_discuz()
+    fids = [
+        (19, 1, 2, 'digest', 'dateline'),
+        (17, 1, 2, 'digest', 'dateline'),
+        (4, 1, 2, 'digest', 'dateline'),
+        (21, 1, 2, 'digest', 'dateline'),
+
+        # (19, 1, 170, '2592000', 'heats'),
+        # (17, 1, 18, '2592000', 'heats'),
+        # (4, 1, 51, '2592000', 'heats'),
+        # (21, 1, 47, '2592000', 'heats'),
+    ]
+
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cookies.json'), 'r') as f:
+        cookies = json.loads(f.read())
+
+    update_discuz(fids, cookies)
     update_detail_from_database()
-    
+
     reblog()
